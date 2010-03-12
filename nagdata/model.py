@@ -59,12 +59,11 @@ class BaseNagObj(dict):
         Create object from result of parse
         """
         self = cls()
-        class_d = self.__class__.__dict__
         self.fmt = fmt
         sup = super(BaseNagObj, self)
         for a, v in args:
-            if a in class_d:
-                o_v = class_d[a].from_string(v)
+            if hasattr(cls, a):
+                o_v = getattr(cls, a).from_string(v)
             else:
                 o_v = v
             if a in self:
@@ -280,9 +279,10 @@ class BaseNagObj(dict):
     def __setitem__(self, attr, value):
         cv = attr in self and self[attr] or None
         sup = super(BaseNagObj, self)
-        class_d = self.__class__.__dict__
-        if attr in class_d and not isinstance(value, class_d[attr]):
-            value = class_d[attr](value)
+        if hasattr(self.__class__, attr):
+            attr_class = getattr(self.__class__, attr)
+            if not isinstance(value, attr_class):
+                value = attr_class(value)
         sup.__setitem__(attr, value)
         if self.is_pk(attr):
             pk = self['__id']
