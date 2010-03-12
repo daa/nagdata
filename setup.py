@@ -6,6 +6,7 @@ import sys
 setup(name='python-nagdata',
     version='0.1',
     description='Python interface to Nagios object and status files',
+    license='LGPL3',
     author='Alexander Duryagin',
     author_email='daa@vologda.ru',
     url='http://github.com/daa/nagdata',
