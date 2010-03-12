@@ -23,6 +23,8 @@ class BaseNagObj(dict):
     collection = None
     # original object whether object is cloned
     _cloned = None
+    # object's format
+    fmt = None
 
     def __init__(self):
         self.__id = object.__hash__(self)
@@ -100,6 +102,20 @@ class BaseNagObj(dict):
             self.__id = hash(tuple(pks))
         super(BaseNagObj, self).__setitem__('__id', self.__id)
 
+    def is_pk(self, attr):
+        """
+        Check if attr is primary key or its part
+        """
+        if attr == '__id':
+            return True
+        pk = self.pkey
+        if isinstance(pk, str):
+            return attr == pk
+        elif isinstance(pk, tuple):
+            return attr in set(pk)
+        else:
+            return False
+
     def clone(self):
         """
         get a clone of this object. useful when changing pkeys.
@@ -146,7 +162,7 @@ class BaseNagObj(dict):
             self.update_pk()
         else:
             self.__id = __id
-            self['__id'] = __id
+            super(BaseNagObj, self).__setitem__('__id', __id)
         self.fmt = None
         return self
 
@@ -260,13 +276,31 @@ class BaseNagObj(dict):
         return self.__id
 
     def __setitem__(self, attr, value):
+        cv = attr in self and self[attr] or None
+        sup = super(BaseNagObj, self)
+        sup.__setitem__(attr, value)
+        if self.is_pk(attr):
+            pk = self['__id']
+            self.update_pk()
+        else:
+            pk = None
         if self.collection and not self._cloned:
-            if attr in self:
-                cv = self[attr]
+            if pk:
+                if self.collection.check_pk(self):
+                    self.collection.update_tag('__id', pk, self['__id'], self)
+                    self.collection.update_tag(attr, cv, value, self)
+                else:
+                    if cv is None:
+                        del self['attr']
+                    else:
+                        sup.__setitem__(attr, cv)
+                        sup.__setitem__('__id', pk)
+                        raise NotUnique(
+                        "Object '%s' with %s already exists in collection" % \
+                                (nagobj.obj_type, nagobj.pkey_value()))
             else:
-                cv = None
-            self.collection.update_tag(attr, cv, value, self)
-        super(BaseNagObj, self).__setitem__(attr, value)
+                self.collection.update_tag(attr, cv, value, self)
+
 
 # Nagios objects
 class NagObj(BaseNagObj):

@@ -29,9 +29,10 @@ class TooMany(NagObjectError):
     """
     pass
 
-class AlreadyExists(NagObjectError):
+class NotUnique(NagObjectError):
     """
-    Object we trying to add already exists in collection
+    Object's primary key is not unique. Raised when trying to add object to
+    collection or changing attributes which are part of pkey.
     """
     pass
 

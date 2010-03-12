@@ -4,7 +4,7 @@ Collection of Nagios objects
 
 import copy
 from factory import NagiosFactory
-from exceptions import AlreadyExists
+from exceptions import NotUnique
 
 class NagCollection(object):
     """
@@ -26,10 +26,10 @@ class NagCollection(object):
         """
         Add object to collection. Also adds this object to necessary groups
         """
-        if not self.filter(__id=nagobj['__id']):
+        if self.check_pk(nagobj):
             self._set.add(nagobj)
         else:
-            raise AlreadyExists(
+            raise NotUnique(
             "Object '%s' with %s already exists in collection" % \
                     (nagobj.obj_type, nagobj.pkey_value()))
         if not self.notags:
@@ -37,6 +37,18 @@ class NagCollection(object):
             for g in nagobj.tags:
                 if g in nagobj:
                     self._add_to_group(g, nagobj)
+
+    def get_similar(self, nagobj):
+        """
+        Returns set of objects with the same primary key.
+        """
+        return self.filter(__id=nagobj['__id'])
+
+    def check_pk(self, nagobj):
+        """
+        Check if primary key is correct (does not exist in collection)
+        """
+        return self.notags or not bool(self.get_similar(nagobj))
 
     def _add_to_group(self, g, nagobj):
         f = nagobj[g]
@@ -105,6 +117,10 @@ class NagCollection(object):
         nagobj.collection = None
 
     def update_tag(self, tag, prev, cur, nagobj):
+        """
+        Update collection's tag sets when nagobj's tag changes its value from
+        prev to cur.
+        """
         if not self.notags:
             if tag in nagobj.tags:
                 gr = self._groups
