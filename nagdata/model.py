@@ -3,6 +3,7 @@ Nagios elementary object
 """
 
 from factory import NagiosFactory
+from exceptions import NotUnique
 import fields
 
 class BaseNagObj(dict):
@@ -46,7 +47,8 @@ class BaseNagObj(dict):
         if pk is None:
             val = "__id='%s'" % self.__id
         elif isinstance(pk, tuple):
-            val = ','.join([ "%s=%s" % (k, repr(self.get(k))) for k in pk ])
+            val = ','.join([ "%s=%s" % (k, repr(self.get(k)))
+                for k in pk if self.get(k)])
         else:
             val = "%s=%s" % (pk, repr(self.get(pk)))
         return val
@@ -278,6 +280,9 @@ class BaseNagObj(dict):
     def __setitem__(self, attr, value):
         cv = attr in self and self[attr] or None
         sup = super(BaseNagObj, self)
+        class_d = self.__class__.__dict__
+        if attr in class_d and not isinstance(value, class_d[attr]):
+            value = class_d[attr](value)
         sup.__setitem__(attr, value)
         if self.is_pk(attr):
             pk = self['__id']
@@ -290,14 +295,14 @@ class BaseNagObj(dict):
                     self.collection.update_tag('__id', pk, self['__id'], self)
                     self.collection.update_tag(attr, cv, value, self)
                 else:
-                    if cv is None:
-                        del self['attr']
+                    if cv is None and attr in self:
+                        del self[attr]
                     else:
                         sup.__setitem__(attr, cv)
-                        sup.__setitem__('__id', pk)
-                        raise NotUnique(
-                        "Object '%s' with %s already exists in collection" % \
-                                (nagobj.obj_type, nagobj.pkey_value()))
+                    sup.__setitem__('__id', pk)
+                    raise NotUnique(
+                    "Object '%s' with %s already exists in collection" % \
+                            (self.obj_type, self.pkey_value()))
             else:
                 self.collection.update_tag(attr, cv, value, self)
 
@@ -335,7 +340,7 @@ class NagHostGroup(NagObjGroup):
 
 class NagService(NagObj):
     obj_type = 'service'
-    pkey = ('service_description', 'host_name', 'name')
+    pkey = ('service_description', 'host_name', 'name', 'hostgroup_name')
     tags = set(['use'])
 
 class NagServiceGroup(NagObjGroup):

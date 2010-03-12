@@ -20,7 +20,8 @@ class NagCollection(object):
         """
         self._set = set()
         self.notags = notags
-        self._groups = {}
+        # tag -> value -> set of objects
+        self.tags = {}
 
     def add(self, nagobj):
         """
@@ -34,9 +35,9 @@ class NagCollection(object):
                     (nagobj.obj_type, nagobj.pkey_value()))
         if not self.notags:
             nagobj.collection = self
-            for g in nagobj.tags:
-                if g in nagobj:
-                    self._add_to_group(g, nagobj)
+            for t in nagobj.tags:
+                if t in nagobj:
+                    self._add_to_tags(t, nagobj)
 
     def get_similar(self, nagobj):
         """
@@ -50,16 +51,16 @@ class NagCollection(object):
         """
         return self.notags or not bool(self.get_similar(nagobj))
 
-    def _add_to_group(self, g, nagobj):
-        f = nagobj[g]
-        if g in self._groups:
-            gr = self._groups[g]
-            if f in gr:
-                gr[f].add(nagobj)
+    def _add_to_tags(self, t, nagobj):
+        f = nagobj[t]
+        if t in self.tags:
+            tgs = self.tags[t]
+            if f in tgs:
+                tgs[f].add(nagobj)
             else:
-                gr[f] = set([nagobj])
+                tgs[f] = set([nagobj])
         else:
-            self._groups[g] = {f: set([nagobj])}
+            self.tags[t] = {f: set([nagobj])}
 
     def all(self):
         """
@@ -71,9 +72,9 @@ class NagCollection(object):
         """
         Clear collection
         """
-        for gr in self._groups:
-            gr.clear()
-        self._groups.clear()
+        for tgs in self.tags:
+            tgs.clear()
+        self.tags.clear()
         for o in self._set:
             o.collection = None
         self._set.clear()
@@ -84,15 +85,15 @@ class NagCollection(object):
         """
         items = tags.items()
         k, v = items[0]
-        gr = self._groups
-        if k in gr and v in gr[k]:
-            x = gr[k][v]
+        tgs = self.tags
+        if k in tgs and v in tgs[k]:
+            x = tgs[k][v]
             if items[1:] == []:
                 x = copy.copy(x)
             else:
                 for k, v in items[1:]:
-                        if k in gr and v in gr[k]:
-                            x = x.intersection(gr[k][v])
+                        if k in tgs and v in tgs[k]:
+                            x = x.intersection(tgs[k][v])
                         else:
                             x = set()
                             break
@@ -112,7 +113,7 @@ class NagCollection(object):
         Remove object from collection
         """
         for g in nagobj.tags:
-            self._groups[g][nagobj[g]].remove(nagobj)
+            self.tags[g][nagobj[g]].discard(nagobj)
         self._set.discard(nagobj)
         nagobj.collection = None
 
@@ -123,17 +124,17 @@ class NagCollection(object):
         """
         if not self.notags:
             if tag in nagobj.tags:
-                gr = self._groups
-                if tag in gr:
-                    if not prev is None and prev in gr[tag]:
-                        gr[tag][prev].remove(nagobj)
+                tgs = self.tags
+                if tag in tgs:
+                    if not prev is None and prev in tgs[tag]:
+                        tgs[tag][prev].discard(nagobj)
                     if not cur is None:
-                        if cur in gr[tag]:
-                            gr[tag][cur].add(nagobj)
+                        if cur in tgs[tag]:
+                            tgs[tag][cur].add(nagobj)
                         else:
-                            gr[tag][cur] = set([nagobj])
+                            tgs[tag][cur] = set([nagobj])
                 elif not cur is None:
-                    gr[tag] = { cur: set([nagobj]) }
+                    tgs[tag] = { cur: set([nagobj]) }
 
     def __iter__(self):
         return self._set.__iter__()
