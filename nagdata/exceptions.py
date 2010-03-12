@@ -35,3 +35,9 @@ class AlreadyExists(NagObjectError):
     """
     pass
 
+class NotInConfig(NagDataError):
+    """
+    File we trying to save object to is not in cfg_dir and not one of cfg_file
+    """
+    pass
+

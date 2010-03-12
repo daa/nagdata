@@ -105,19 +105,19 @@ class NagCollection(object):
         nagobj.collection = None
 
     def update_tag(self, tag, prev, cur, nagobj):
-        if not self._no_tags:
-            if idx in nagobj.tags:
+        if not self.notags:
+            if tag in nagobj.tags:
                 gr = self._groups
-                if idx in gr:
-                    if not prev is None and prev in gr[idx]:
-                        gr[idx][prev].remove(nagobj)
+                if tag in gr:
+                    if not prev is None and prev in gr[tag]:
+                        gr[tag][prev].remove(nagobj)
                     if not cur is None:
-                        if cur in gr[idx]:
-                            gr[idx][cur].add(nagobj)
+                        if cur in gr[tag]:
+                            gr[tag][cur].add(nagobj)
                         else:
-                            gr[idx][cur] = set([nagobj])
+                            gr[tag][cur] = set([nagobj])
                 elif not cur is None:
-                    gr[idx] = { cur: set([nagobj]) }
+                    gr[tag] = { cur: set([nagobj]) }
 
     def __iter__(self):
         return self._set.__iter__()

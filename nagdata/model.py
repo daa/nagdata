@@ -196,24 +196,28 @@ class BaseNagObj(dict):
                 last_ln = l
             last_l = line
             for a, v in self.fields():
-                ntabs = int((24 - len(a))/8) + 1
                 if hasattr(self[a], 'groups'):
                     left_len = len(self[a].groups[done[a]:])
                     for l in range(left_len):
-                        new_f.extend([
-                            ('FMT_STR', '\t', last_ln),
-                            ('FMT_STR', a, last_ln),
-                            ('FMT_STR', '\t'*ntabs, last_ln),
-                            ('FMT_VAL', a, last_ln),
-                            ('FMT_STR', '\n', last_ln)])
+                        new_f.extend(self._fmt_line(a, last_ln))
                         last_ln += 1
                 elif not a in done:
-                    new_f.extend([('FMT_STR', '\t', last_ln), ('FMT_STR', a, last_ln),
-                        ('FMT_STR', '\t'*ntabs, last_ln), ('FMT_VAL', a, last_ln),
-                        ('FMT_STR', '\n', last_ln) ])
+                    new_f.extend(self._fmt_line(a, last_ln))
                     last_ln += 1
             new_f.extend(last_l)
             self.fmt = new_f
+
+    def _fmt_line(self, attr, line_no):
+        """
+        Return list of format tuples representing line corresponding to
+        attribute. This list extends slef._fmt.
+        """
+        ntabs = int((24 - len(a))/8) + 1
+        return [('FMT_STR', '\t', last_ln),
+                ('FMT_STR', a, last_ln),
+                ('FMT_STR', '\t'*ntabs, last_ln),
+                ('FMT_VAL', a, last_ln),
+                ('FMT_STR', '\n', last_ln)]
 
     def __str__(self):
         if self.fmt is None:
@@ -406,6 +410,17 @@ class NagConfig(NagStat):
 
     def __str__(self):
         return BaseNagObj.__str__(self)
+
+    def _fmt_line(self, attr, line_no):
+        """
+        Return list of format tuples representing line corresponding to
+        attribute. This list extends slef._fmt.
+        """
+        return [('FMT_STR', '', last_ln),
+                ('FMT_STR', a, last_ln),
+                ('FMT_STR', '=', last_ln),
+                ('FMT_VAL', a, last_ln),
+                ('FMT_STR', '\n', last_ln)]
 
 # Register object and status classes with Nagios factory
 # should be called when starting to work with library

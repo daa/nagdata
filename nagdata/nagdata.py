@@ -9,7 +9,7 @@ import time
 from nagfile import NagObjectFile, NagStatusFile, NagConfigFile
 from collection import NagCollection
 from factory import NagiosFactory
-from exceptions import NotFound, TooMany
+from exceptions import NotFound, TooMany, NotInConfig
 import model
 import fmt
 
@@ -39,7 +39,7 @@ class NagData(object):
         Load configuration file and objects
         """
         nco = NagCollection()
-        cfg = NagConfigFile(filename, self.factory).parse(add_file_info=True)
+        self.cfg = cfg = NagConfigFile(filename, self.factory).parse(add_file_info=True)
         nco.add(cfg)
         for f in cfg['cfg_file']:
             nco.extend(NagObjectFile(f, self.factory).parse(add_file_info=True))
@@ -113,11 +113,14 @@ class NagData(object):
         """
         if filename is None:
             filename = nagobj['__filename']
-        else:
-            nagobj['__filename'] = filename
+        filename = os.path.abspath(filename)
+        nagobj['__filename'] = filename
+        if not reduce(lambda s, d: s or filename.startswith(d), 
+                self.cfg['cfg_dir'], False) \
+                and not filename in self.cfg['cfg_file']:
+                raise NotInConfig(("Fle '%s' is not in one of config " + \
+                    "directories and not one of config files") % filename)
         objs = list(self.filter(__filename=filename))
-        for o in objs:
-            print repr(o)
         objs.sort(cmp=lambda a, b: cmp(a.get('__pos', 10000),
             b.get('__pos', 10000)))
         s = ''.join([ str(o) for o in objs ])
@@ -129,11 +132,11 @@ class NagData(object):
                         time.strftime(".bkp.%Y%m%d%H%M%S.", time.localtime(t)) + \
                         (str(t - int(t))[2:]), 'w')
                 org = open(filename, 'r')
-                print >> bkp, org.read(),
+                bkp.write(org.read())
                 org.close()
                 bkp.close()
         f = open(filename, 'w');
-        print >> f, s,
+        f.write(s)
         f.close()
 
 
