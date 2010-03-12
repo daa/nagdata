@@ -76,6 +76,40 @@ class NagData(object):
         """
         return self.config.filter(**tags).union(self.status.filter(**tags))
 
+    def new(self, obj_type, **kw):
+        """
+        Create nagios object of obj_type, set its fields from kw
+        """
+        o = self.factory(obj_type)
+        for k, v in kw.items():
+            o[k] = v
+        return o
+
+    def add(self, nagobj):
+        """
+        Add object to corresponding collection
+        """
+        if nagobj.obj_type in self.config.tags['obj_type']:
+            self.config.add(nagobj)
+        elif nagobj.obj_type in self.status.tags['obj_type']:
+            self.status.add(nagobj)
+
+    def addnew(self, obj_type, **kw):
+        """
+        Create nagios object of obj_type, set its fields from kw, add it to
+        corresponding collection, return it
+        """
+        o = self.new(obj_type, **kw)
+        self.add(o)
+        return o
+
+    def remove(self, nagobj):
+        """
+        Remove object from collections
+        """
+        self.status.remove(nagobj)
+        self.config.remove(nagobj)
+
     def get(self, obj_type, **kw):
         """
         Return object of given type matching given key-value, raise NotFound or
