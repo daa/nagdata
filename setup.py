@@ -6,6 +6,10 @@ import sys
 setup(name='python-nagdata',
     version='0.1',
     description='Python interface to Nagios object and status files',
+    long_description='Python interface to Nagios object and status files. Parses '+\
+        'configuration files, status.dat (status file) and represents information '+\
+        'as collection of objects with corresponding obj_type and attributes. '+\
+        'Objects may be changed and saved.',
     license='LGPL3',
     author='Alexander Duryagin',
     author_email='daa@vologda.ru',
