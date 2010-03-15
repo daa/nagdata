@@ -32,9 +32,10 @@ class value_list(list):
     """
     Just list of values with another __str__
     """
+    delimiter = ','
 
     def __str__(self):
-        return ','.join([ str(x) for x in self ])
+        return self.delimiter.join([ str(x) for x in self ])
 
     def add(self, vl):
         self.extend(vl)
@@ -44,27 +45,28 @@ class value_list(list):
         """
         create list from comma-separated string
         """
-        return cls([ x.strip() for x in s.split(',')])
+        return cls([ x.strip() for x in s.split(cls.delimiter)])
 
 class tuple_list(value_list):
     """
     Just list of tuples with specific __str__
     """
     def __str__(self):
-        return ','.join([ "%s,%s" % (x, y) for x, y in self ])
+        return self.delimiter.join([ "%s,%s" % (x, y) for x, y in self ])
 
     @classmethod
     def from_string(cls, s):
         """
         create list from comma-separated string
         """
-        l = [ x.strip() for x in s.split(',') ]
+        l = [ x.strip() for x in s.split(cls.delimiter) ]
         return cls([ (p0, p1) for p0, p1 in zip(l[::2], l[1::2]) ])
 
 class group_list(object):
-    def __new__(self, list_class):
+    def __new__(self, list_class, delim=','):
         class grouplist(list_class):
             _list_class = list_class
+            delimiter = delim
             def __init__(self, init=None):
                 if init is None:
                     super(grouplist, self).__init__()
