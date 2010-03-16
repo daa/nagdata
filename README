@@ -81,12 +81,12 @@ from nagdata import nagdata
 n = nagdata.NagDataSimpleApi()
 
 #create and add
-svc = n.addnew('service',
+svc = n.new('service',
     service_description='PING',
     host_name='localhost')
 
-# create
-svc = n.new('service', service_description='PING')
+# just create
+svc = n.new_asis('service', service_description='PING')
 svc['host_name'] = 'router1'
 # add to collection
 n.add(svc)
