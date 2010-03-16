@@ -23,6 +23,13 @@ Nagdata exceptions
 class NagDataError(Exception):
     pass
 
+class ConfigNotGiven(NagDataError):
+    """
+    When load_config, configuration file is not given as parameter and not set
+    as object's nagios_cfg attribute.
+    """
+    pass
+
 class NagiosSyntaxError(NagDataError):
     """
     Syntax error while parsing config or status file

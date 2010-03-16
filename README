@@ -86,7 +86,7 @@ svc = n.new('service',
     host_name='localhost')
 
 # just create
-svc = n.new_asis('service', service_description='PING')
+svc = n.new_untied('service', service_description='PING')
 svc['host_name'] = 'router1'
 # add to collection
 n.add(svc)

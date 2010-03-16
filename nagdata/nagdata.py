@@ -27,7 +27,7 @@ import time
 from nagfile import NagObjectFile, NagStatusFile, NagConfigFile
 from collection import NagCollection
 from factory import NagiosFactory
-from exceptions import NotFound, TooMany, NotInConfig
+from exceptions import NotFound, TooMany, NotInConfig, ConfigNotGiven
 import model
 import fmt
 
@@ -47,13 +47,17 @@ class NagData(object):
         fmt.register_fmt_classes(self.factory)
         self.nagios_cfg = config_file
         self.config = self.load_config(self.nagios_cfg)
-        self.status = self.load_status(self.cfg['status_file'])
+        self.status = self.load_status()
         self.keep_backup = keep_backup
 
-    def load_config(self, filename):
+    def load_config(self, filename=None):
         """
         Load configuration file and objects
         """
+        if not filename:
+            if not self.nagios_cfg:
+                raise ConfigNotGiven("Configuration file is not set")
+            filename = self.nagios_cfg
         nco = NagCollection()
         self.cfg = cfg = NagConfigFile(filename, self.factory).parse(add_file_info=True)
         nco.add(cfg)
@@ -64,10 +68,12 @@ class NagData(object):
                 nco.extend(NagObjectFile(f, self.factory).parse(add_file_info=True))
         return nco
 
-    def load_status(self, filename='/var/log/nagios/status.dat'):
+    def load_status(self, filename=None):
         """
         Load status file and objects
         """
+        if not filename:
+            filename = self.cfg['status_file']
         nso = NagCollection()
         nso.extend(NagStatusFile(filename, self.factory).parse())
         return nso
@@ -76,14 +82,14 @@ class NagData(object):
         """
         Update current configuration
         """
-        cfg = self.load_config(self.nagios_cfg)
+        cfg = self.load_config()
         self.config = cfg
 
     def update_status(self):
         """
         Update current status
         """
-        stat = self.load_status(self.cfg['status_file'])
+        stat = self.load_status()
         self.status = stat
 
     def filter(self, **tags):
@@ -92,7 +98,7 @@ class NagData(object):
         """
         return self.config.filter(**tags).union(self.status.filter(**tags))
 
-    def new_asis(self, obj_type, **kw):
+    def new_untied(self, obj_type, **kw):
         """
         Create nagios object of obj_type, set its fields from kw, do not add to
         corresponding collection.
@@ -116,7 +122,7 @@ class NagData(object):
         Create nagios object of obj_type, set its fields from kw, add it to
         corresponding collection, return it
         """
-        o = self.new_asis(obj_type, **kw)
+        o = self.new_untied(obj_type, **kw)
         self.add(o)
         return o
 
