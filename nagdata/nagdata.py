@@ -37,19 +37,17 @@ class NagData(object):
     """
 
     def __init__(self, config_file='/etc/nagios/nagios.cfg',
-            status_file='/var/log/nagios/status.dat', factory=NagiosFactory,
+            factory=NagiosFactory,
             keep_backup=True):
         """
         config_file -- Nagios configuration file
-        status_file -- Nagios status file
         """
         self.factory = factory
         model.register_all_classes(self.factory)
         fmt.register_fmt_classes(self.factory)
         self.nagios_cfg = config_file
-        self.status_dat = status_file
         self.config = self.load_config(self.nagios_cfg)
-        self.status = self.load_status(self.status_dat)
+        self.status = self.load_status(self.cfg['status_file'])
         self.keep_backup = keep_backup
 
     def load_config(self, filename):
@@ -85,7 +83,7 @@ class NagData(object):
         """
         Update current status
         """
-        stat = self.load_status(self.status_dat)
+        stat = self.load_status(self.cfg['status_file'])
         self.status = stat
 
     def filter(self, **tags):
@@ -94,9 +92,10 @@ class NagData(object):
         """
         return self.config.filter(**tags).union(self.status.filter(**tags))
 
-    def new(self, obj_type, **kw):
+    def new_asis(self, obj_type, **kw):
         """
-        Create nagios object of obj_type, set its fields from kw
+        Create nagios object of obj_type, set its fields from kw, do not add to
+        corresponding collection.
         """
         o = self.factory(obj_type)
         for k, v in kw.items():
@@ -112,12 +111,12 @@ class NagData(object):
         elif nagobj.obj_type in self.status.tags['obj_type']:
             self.status.add(nagobj)
 
-    def addnew(self, obj_type, **kw):
+    def new(self, obj_type, **kw):
         """
         Create nagios object of obj_type, set its fields from kw, add it to
         corresponding collection, return it
         """
-        o = self.new(obj_type, **kw)
+        o = self.new_asis(obj_type, **kw)
         self.add(o)
         return o
 
