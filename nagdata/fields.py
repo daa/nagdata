@@ -75,7 +75,10 @@ class group_list(object):
                     super(grouplist, self).__init__(init)
                     self.groups = [init]
             def add(self, l):
-                self.groups.append(l)
+                if isinstance(l, self._list_class):
+                    self.groups.append(l)
+                else:
+                    self.groups.append(self._list_class(l))
                 super(grouplist, self).add(l)
             def new_group(self):
                 self.groups.append(self._list_class())

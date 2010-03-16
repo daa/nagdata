@@ -247,12 +247,12 @@ class BaseNagObj(dict):
         Return list of format tuples representing line corresponding to
         attribute. This list extends slef._fmt.
         """
-        ntabs = int((24 - len(a))/8) + 1
-        return [('FMT_STR', '\t', last_ln),
-                ('FMT_STR', a, last_ln),
-                ('FMT_STR', '\t'*ntabs, last_ln),
-                ('FMT_VAL', a, last_ln),
-                ('FMT_STR', '\n', last_ln)]
+        ntabs = int((24 - len(attr))/8) + 1
+        return [('FMT_STR', '\t', line_no),
+                ('FMT_STR', attr, line_no),
+                ('FMT_STR', '\t'*ntabs, line_no),
+                ('FMT_VAL', attr, line_no),
+                ('FMT_STR', '\n', line_no)]
 
     def __str__(self):
         if self.fmt is None:
