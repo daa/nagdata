@@ -72,7 +72,7 @@ hg = n.get_hostgroup('servers_corp')
 # change address
 h0['address'] = 'router2'
 # and save to file
-n.save_object(h0)
+n.save(h0)
 
 
 # create and add object
