@@ -41,62 +41,97 @@ class NagData(object):
             keep_backup=True):
         """
         config_file -- Nagios configuration file
+        keep_backup -- keep backup copy of configuration file we're writing at
+                       save_object
         """
         self.factory = factory
         model.register_all_classes(self.factory)
         fmt.register_fmt_classes(self.factory)
         self.nagios_cfg = config_file
-        self.config = self.load_config(self.nagios_cfg)
-        self.status = self.load_status()
+        self.cfg, self.config = self.load_config()
+        self.status, self.status_ctime = self.load_status()
         self.keep_backup = keep_backup
 
-    def load_config(self, filename=None):
+    def load_config(self):
         """
-        Load configuration file and objects
+        Load configuration file and objects, returns representation of main
+        configuration file (nagios.cfg) and config collection
         """
-        if not filename:
-            if not self.nagios_cfg:
-                raise ConfigNotGiven("Configuration file is not set")
-            filename = self.nagios_cfg
         nco = NagCollection()
-        self.cfg = cfg = NagConfigFile(filename, self.factory).parse(add_file_info=True)
+        cfg = NagConfigFile(self.nagios_cfg, self.factory).parse(add_file_info=True)
         nco.add(cfg)
         for f in cfg['cfg_file']:
             nco.extend(NagObjectFile(f, self.factory).parse(add_file_info=True))
         for d in cfg['cfg_dir']:
             for f in glob.glob("%s/*.cfg" % d):
                 nco.extend(NagObjectFile(f, self.factory).parse(add_file_info=True))
-        return nco
+        return cfg, nco
 
-    def load_status(self, filename=None):
+    def load_status(self):
         """
-        Load status file and objects
+        Load status file and objects, returns status collection and it's change
+        time (ctime of file)
         """
-        if not filename:
-            filename = self.cfg['status_file']
         nso = NagCollection()
-        nso.extend(NagStatusFile(filename, self.factory).parse())
-        return nso
+        nso.extend(NagStatusFile(self.cfg['status_file'], self.factory).parse())
+        status_ctime = os.stat(self.cfg['status_file']).st_ctime
+        return nso, status_ctime
 
     def update_config(self):
         """
-        Update current configuration
+        Update current configuration, changed and created objects remain in
+        config collection
         """
-        cfg = self.load_config()
-        self.config = cfg
+        main_cfg, cfg_objs = self.load_config()
+        # add changed and created config objects to new collection
+        cfg_objs.update(self.config)
+        self.config = cfg_objs
+        self.cfg = main_cfg
 
     def update_status(self):
         """
-        Update current status
+        Update current status, status collection is fully updated, changes (if
+        were, but shouldn't be) are discarded
         """
-        stat = self.load_status()
+        stat, ctime = self.load_status()
+        self.status_ctime = ctime
         self.status = stat
 
-    def filter(self, **tags):
+    def config_outdated(self):
         """
-        Return set of objects matching given tags
+        Check if configuration files were updated since last load
         """
-        return self.config.filter(**tags).union(self.status.filter(**tags))
+        outdated = False
+        for fn, fs in self.config.tags['__filename'].items():
+            try:
+                ctime = os.stat(fn).st_ctime
+                if fs:
+                    outdated = ctime > list(fs)[0]['__ctime']
+                else:
+                    outdated = True
+            except:
+                outdated = bool(fs)
+            if outdated:
+                return outdated
+        cfg = NagConfigFile(self.nagios_cfg,
+                self.factory).parse()
+        for f in cfg['cfg_file'] + reduce(lambda s, x: s + x,
+                 [ glob.glob("%s/*.cfg" % d) for d in cfg['cfg_dir'] ], []):
+                # appeared new file
+                outdated = not f in self.config.tags['__filename']
+                if outdated:
+                    return outdated
+        return outdated
+
+    def status_outdated(self):
+        """
+        Check if status file was updated since last use
+        """
+        try:
+            ctime = os.stat(self.cfg['status_file']).st_ctime
+            return ctime > self.status_ctime
+        except:
+            return False
 
     def new_untied(self, obj_type, **kw):
         """
@@ -133,6 +168,12 @@ class NagData(object):
         self.status.remove(nagobj)
         self.config.remove(nagobj)
 
+    def filter(self, **tags):
+        """
+        Return set of objects matching given tags
+        """
+        return self.config.filter(**tags).union(self.status.filter(**tags))
+
     def get(self, obj_type, **kw):
         """
         Return object of given type matching given key-value, raise NotFound or
@@ -162,7 +203,7 @@ class NagData(object):
         else:
             return o.pop()
 
-    def save_object(self, nagobj, filename=None):
+    def save(self, nagobj, filename=None):
         """
         Save object to file and set __filename attribute
         If filename is not given, save it to self['__filename'], also saves all
@@ -172,11 +213,16 @@ class NagData(object):
             filename = nagobj['__filename']
         filename = os.path.abspath(filename)
         nagobj['__filename'] = filename
+
         if not reduce(lambda s, d: s or filename.startswith(d), 
                 self.cfg['cfg_dir'], False) \
                 and not filename in self.cfg['cfg_file']:
                 raise NotInConfig(("Fle '%s' is not in one of config " + \
                     "directories and not one of config files") % filename)
+
+        if not (nagobj in self.config or nagobj in self.status):
+            self.add(nagobj)
+
         objs = list(self.filter(__filename=filename))
         objs.sort(cmp=lambda a, b: cmp(a.get('__pos', 10000),
             b.get('__pos', 10000)))
@@ -198,9 +244,10 @@ class NagData(object):
 
 
 
-class NagDataSimpleApi(NagData):
+class SimpleApi(object):
     """
-    Simple API for NagData to make access to common types of objects easier.
+    Mixin to add simple API for NagData to make access to common types of
+    objects easier.
     """
 
     def get_host(self, host=None):
@@ -218,7 +265,8 @@ class NagDataSimpleApi(NagData):
         """
         if host:
             h = self.get_host(host)
-            return self.get('service', host_name=h['host_name'], service_description=service_description)
+            return self.get('service', host_name=h['host_name'],
+                    service_description=service_description)
         else:
             return self.get('service', service_description=service_description)
 
@@ -342,4 +390,50 @@ class NagDataSimpleApi(NagData):
         programstatus
         """
         return self.get('programstatus')
+
+class OnUpdateCallbacks(object):
+    """
+    Mixin to add callbacks on update to NagData
+    """
+
+    def update_config(self):
+        """
+        Update current configuration, changed and created objects remain in
+        config collection, call on_update_config(old, new) before any update
+        """
+        main_cfg, cfg_objs = self.load_config()
+        self.on_update_config(self.config, cfg_objs)
+        # add changed and created config objects to new collection
+        cfg_objs.update(self.config)
+        self.config = cfg_objs
+        self.cfg = main_cfg
+
+    def update_status(self):
+        """
+        Update current status, status collection is fully updated, changes (if
+        were, but shouldn't be) are discarded, call on_update_status(old, new)
+        before any update
+        """
+        stat, ctime = self.load_status()
+        self.on_update_status(self.config, cfg_objs)
+        self.status_ctime = ctime
+        self.status = stat
+
+    def on_update_config(self, old_config, new_config):
+        """
+        Called after loading new configuration and before updating old
+        """
+        pass
+
+    def on_update_status(self, old_status, new_status):
+        """
+        Called after loading new status collection and before updating old
+        """
+        pass
+
+class NagDataSimpleApi(NagData, SimpleApi, OnUpdateCallbacks):
+    """
+    NagData with simple api and callbacks on update
+    """
+    pass
 
