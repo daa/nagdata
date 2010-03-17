@@ -229,17 +229,17 @@ class BaseNagObj(dict):
                     line = [(t, a, l)]
                     n = -1
                 last_ln = l
-            last_l = line
+            last_line = line
             for a, v in self.fields():
                 if hasattr(self[a], 'groups'):
                     left_len = len(self[a].groups[done[a]:])
                     for l in range(left_len):
-                        new_f.extend(self._fmt_line(a, last_ln))
                         last_ln += 1
+                        new_f.extend(self._fmt_line(a, last_ln))
                 elif not a in done:
-                    new_f.extend(self._fmt_line(a, last_ln))
                     last_ln += 1
-            new_f.extend(last_l)
+                    new_f.extend(self._fmt_line(a, last_ln))
+            new_f.extend(last_line)
             self.fmt = new_f
 
     def _fmt_line(self, attr, line_no):
@@ -473,11 +473,11 @@ class NagConfig(NagStat):
         Return list of format tuples representing line corresponding to
         attribute. This list extends slef._fmt.
         """
-        return [('FMT_STR', '', last_ln),
-                ('FMT_STR', a, last_ln),
-                ('FMT_STR', '=', last_ln),
-                ('FMT_VAL', a, last_ln),
-                ('FMT_STR', '\n', last_ln)]
+        return [('FMT_STR', '', line_no),
+                ('FMT_STR', attr, line_no),
+                ('FMT_STR', '=', line_no),
+                ('FMT_VAL', attr, line_no),
+                ('FMT_STR', '\n', line_no)]
 
 # Register object and status classes with Nagios factory
 # should be called when starting to work with library
