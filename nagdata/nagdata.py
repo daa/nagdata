@@ -426,7 +426,7 @@ class OnUpdateCallbacks(object):
         before any update
         """
         stat, ctime = self.load_status()
-        self.on_update_status(self.config, cfg_objs)
+        self.on_update_status(self.config, stat)
         self.status_ctime = ctime
         self.status = stat
 
@@ -442,7 +442,7 @@ class OnUpdateCallbacks(object):
         """
         pass
 
-class NagDataSimpleApi(NagData, SimpleApi, OnUpdateCallbacks):
+class NagDataSimpleApi(SimpleApi, OnUpdateCallbacks, NagData):
     """
     NagData with simple api and callbacks on update
     """
