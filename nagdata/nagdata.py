@@ -174,11 +174,18 @@ class NagData(object):
         """
         return self.config.filter(**tags).union(self.status.filter(**tags))
 
-    def getall(self, obj_type, **kw):
+    def getall(self, obj_type, **tags):
         """
         Get set of all objects with givent type matching given key-value
         """
-        return self.filter(obj_type=obj_type, **kw)
+        # here we use fact that config and status objects are in different
+        # collections
+        if obj_type in self.config.tags['obj_type']:
+            return self.config.filter(obj_type=obj_type, **tags)
+        elif obj_type in self.status.tags['obj_type']:
+            return self.status.filter(obj_type=obj_type, **tags)
+        else:
+            return set()
 
     def get(self, obj_type, **kw):
         """
