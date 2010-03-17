@@ -57,18 +57,6 @@ class NagCollection(object):
                 if t in nagobj:
                     self._add_to_tags(t, nagobj)
 
-    def get_similar(self, nagobj):
-        """
-        Returns set of objects with the same primary key.
-        """
-        return self.filter(__id=nagobj['__id'])
-
-    def check_pk(self, nagobj):
-        """
-        Check if primary key is correct (does not exist in collection)
-        """
-        return self.notags or not bool(self.get_similar(nagobj))
-
     def _add_to_tags(self, t, nagobj):
         f = nagobj[t]
         if t in self.tags:
@@ -79,23 +67,6 @@ class NagCollection(object):
                 tgs[f] = set([nagobj])
         else:
             self.tags[t] = {f: set([nagobj])}
-
-    def all(self):
-        """
-        Return set of all objects
-        """
-        return copy.copy(self._set)
-
-    def flush(self):
-        """
-        Clear collection
-        """
-        for tgs in self.tags:
-            tgs.clear()
-        self.tags.clear()
-        for o in self._set:
-            o.collection = None
-        self._set.clear()
 
     def filter(self, **tags):
         """
@@ -119,13 +90,6 @@ class NagCollection(object):
             x = set()
         return x
 
-    def extend(self, coll):
-        """
-        Extend collection with another
-        """
-        for o in coll:
-            self.add(o)
-
     def remove(self, nagobj):
         """
         Remove object from collection
@@ -134,6 +98,18 @@ class NagCollection(object):
             self.tags[g][nagobj[g]].discard(nagobj)
         self._set.discard(nagobj)
         nagobj.collection = None
+
+    def get_similar(self, nagobj):
+        """
+        Returns set of objects with the same primary key.
+        """
+        return self.filter(__id=nagobj['__id'])
+
+    def check_pk(self, nagobj):
+        """
+        Check if primary key is correct (does not exist in collection)
+        """
+        return self.notags or not self.get_similar(nagobj)
 
     def update_tag(self, tag, prev, cur, nagobj):
         """
@@ -154,10 +130,49 @@ class NagCollection(object):
                 elif not cur is None:
                     tgs[tag] = { cur: set([nagobj]) }
 
+    def all(self):
+        """
+        Return set of all objects
+        """
+        return copy.copy(self._set)
+
+    def clear(self):
+        """
+        Clear collection
+        """
+        for tgs in self.tags.values():
+            tgs.clear()
+        self.tags.clear()
+        for o in self._set:
+            o.collection = None
+        self._set.clear()
+
+    def extend(self, coll):
+        """
+        Extend collection with another
+        """
+        for o in coll:
+            self.add(o)
+
+    def update(self, coll):
+        """
+        Update collection with another: object from coll with different __id
+        is added to self, object from coll with existing __id replaces that in
+        self
+        """
+        for o in coll._set - self._set:
+            x = self.get_similar(o)
+            if x:
+                self.remove(x.pop())
+            self.add(o)
+
     def __iter__(self):
         return self._set.__iter__()
 
+    def __contains__(self, x):
+        return x in self._set
+
     def __len__(self):
-            return len(self._set)
+        return len(self._set)
 
 
