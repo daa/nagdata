@@ -174,21 +174,27 @@ class NagData(object):
         """
         return self.config.filter(**tags).union(self.status.filter(**tags))
 
+    def getall(self, obj_type, **kw):
+        """
+        Get set of all objects with givent type matching given key-value
+        """
+        return self.filter(obj_type=obj_type, **kw)
+
     def get(self, obj_type, **kw):
         """
         Return object of given type matching given key-value, raise NotFound or
         TooMany exceptions when no objects found or found more than 1 object.
         """
-        o = self.filter(obj_type=obj_type, **kw)
+        o = self.getall(obj_type, **kw)
         l = len(o)
         if l <= 0:
             raise NotFound("'%s' (%s) not found" % \
-                    (obj_type, ','.join([ "%s='%s'" % (str(n), str(v)) for n, v
-                        in kw.items() ])))
+                    (obj_type, ','.join([ "%s='%s'" % (str(n), str(v))
+                        for n, v in kw.items() ])))
         elif l > 1:
             raise TooMany("Too many objects '%s' (%s)" % \
-                    (obj_type, ','.join([ "%s=%s" % (str(n), str(v)) for n, v
-                        in kw.items() ])))
+                    (obj_type, ','.join([ "%s='%s'" % (str(n), str(v))
+                        for n, v in kw.items() ])))
         else:
             return o.pop()
 
@@ -197,7 +203,7 @@ class NagData(object):
         Return object of given type matching given key-value, returns None when
         cannot return single object (not found or found >1)
         """
-        o = self.filter(obj_type=obj_type, **kw)
+        o = self.getall(obj_type, **kw)
         if len(o) != 1:
             return None
         else:
@@ -302,52 +308,50 @@ class SimpleApi(object):
         list of servicestatus for host
         """
         h = self.get_host(host)
-        return list(self.filter(obj_type='servicestatus',
-            host_name=h.fields.host_name))
+        return list(self.getall('servicestatus', host_name=h.fields.host_name))
 
     def get_hostgroup_statuses(self, hostgroup_name):
         """
         list of hoststatus for hostgroup
         """
         hg = self.get_hostgroup(hostgroup_name)
-        return filter(lambda x: not x is None,
-                [ self.get_hoststatus(host) for host in hg['members'] ])
+        return [ s for s in
+                [ self.get_hoststatus(host) for host in hg['members'] ] if s ]
 
     def get_servicegroup_statuses(self, servicegroup_name):
         """
         list of servicestatus for servicegroup
         """
         sg = self.get_servicegroup(servicegroup_name)
-        return filter(lambda x: not x is None,
-                [ self.get_servicestatus(h, s) for h, s in sg['members'] ])
+        return [ s for s in
+                [ self.get_servicestatus(h, s) for h,s in sg['members'] ] if s ]
 
     def get_hostcomments(self, host):
         """
         list of hostcomment for host
         """
         h = self.get_host(host)
-        return list(self.filter(obj_type='hostcomment',
-            host_name=h['host_name']))
+        return list(self.getall('hostcomment', host_name=h['host_name']))
 
     def get_servicecomments(self, host, srv):
         """
         list of servicecomment for host and service
         """
         h = self.get_host(host)
-        return list(self.filter(obj_type='servicecomment',
+        return list(self.getall('servicecomment',
             host_name=h['host_name'], service_description=srv))
 
     def get_author_hostcomments(self, author):
         """
         all author hostcomments
         """
-        return list(self.filter(obj_type='hostcomment', author=author))
+        return list(self.getall('hostcomment', author=author))
 
     def get_author_servicecomments(self, author):
         """
         all author servicecomments
         """
-        return list(self.filter(obj_type='servicecomment', author=author))
+        return list(self.getall('servicecomment', author=author))
 
     def get_author_comments(self, author):
         """
@@ -359,25 +363,25 @@ class SimpleApi(object):
         """
         all hosts
         """
-        return list(self.filter(obj_type='host'))
+        return list(self.getall('host'))
 
     def get_hostgroups(self):
         """
         all hostgroups
         """
-        return list(self.filter(obj_type='hostgroup'))
+        return list(self.getall('hostgroup'))
 
     def get_services(self):
         """
         all services
         """
-        return list(self.filter(obj_type='service'))
+        return list(self.getall('service'))
 
     def get_servicegroups(self):
         """
         all servicegroups
         """
-        return list(self.filter(obj_type='servicegroup'))
+        return list(self.getall('servicegroup'))
 
     def get_info(self):
         """
