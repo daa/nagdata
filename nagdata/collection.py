@@ -45,28 +45,28 @@ class NagCollection(object):
         """
         Add object to collection. Also adds this object to necessary groups
         """
-        if self.check_pk(nagobj):
+        if self.notags:
             self._set.add(nagobj)
-        else:
-            raise NotUnique(
-            "Object '%s' with %s already exists in collection" % \
-                    (nagobj.obj_type, nagobj.pkey_value()))
-        if not self.notags:
-            nagobj.collection = self
-            for t in nagobj.tags:
-                if t in nagobj:
-                    self._add_to_tags(t, nagobj)
+            return
 
-    def _add_to_tags(self, t, nagobj):
-        f = nagobj[t]
-        if t in self.tags:
-            tgs = self.tags[t]
-            if f in tgs:
-                tgs[f].add(nagobj)
+        if not self.check_pk(nagobj):
+            raise NotUnique("Object '%s' with %s already exists in collection"%\
+                    (nagobj.obj_type, nagobj.pkey_value()))
+
+        self._set.add(nagobj)
+        nagobj.collection = self
+        for t in nagobj.tags:
+            if not t in nagobj:
+                continue
+            f = nagobj[t]
+            if t in self.tags:
+                tgs = self.tags[t]
+                if f in tgs:
+                    tgs[f].add(nagobj)
+                else:
+                    tgs[f] = set([nagobj])
             else:
-                tgs[f] = set([nagobj])
-        else:
-            self.tags[t] = {f: set([nagobj])}
+                self.tags[t] = {f: set([nagobj])}
 
     def filter(self, **tags):
         """
@@ -109,7 +109,7 @@ class NagCollection(object):
         """
         Check if primary key is correct (does not exist in collection)
         """
-        return self.notags or not self.get_similar(nagobj)
+        return not self.get_similar(nagobj)
 
     def update_tag(self, tag, prev, cur, nagobj):
         """
