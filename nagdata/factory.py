@@ -30,7 +30,7 @@ class NagiosFactory(object):
     """
     obj_types = {}
 
-    def __new__(cls, obj_type):
+    def __new__(cls, obj_type, **kw):
         """
         Just create Nagios object of given obj_type
         """
@@ -41,7 +41,7 @@ class NagiosFactory(object):
             #raise NagiosFactoryError(
             #    "Object type '%s' is not registered with this factory" % \
             #    obj_type)
-        return C()
+        return C(**kw)
 
     @classmethod
     def register_class(cls, nagobj_class):
