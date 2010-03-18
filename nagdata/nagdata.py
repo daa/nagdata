@@ -52,6 +52,14 @@ class NagData(object):
         self.status, self.status_ctime = self.load_status()
         self.keep_backup = keep_backup
 
+    def load_config_file(self, filename):
+        """
+        Loads configuration file and returns collection of objects containing
+        in it, may be useful for incremental update of configuration
+        Does not suit for loading main nagios.cfg
+        """
+        return NagObjectFile(filename, self.factory).parse(add_file_info=True)
+
     def load_config(self):
         """
         Load configuration file and objects, returns representation of main
@@ -61,10 +69,10 @@ class NagData(object):
         cfg = NagConfigFile(self.nagios_cfg, self.factory).parse(add_file_info=True)
         nco.add(cfg)
         for f in cfg['cfg_file']:
-            nco.extend(NagObjectFile(f, self.factory).parse(add_file_info=True))
+            nco.extend(self.load_config_file(f))
         for d in cfg['cfg_dir']:
             for f in glob.glob("%s/*.cfg" % d):
-                nco.extend(NagObjectFile(f, self.factory).parse(add_file_info=True))
+                nco.extend(self.load_config_file(f))
         return cfg, nco
 
     def load_status(self):
@@ -88,6 +96,19 @@ class NagData(object):
         self.config = cfg_objs
         self.cfg = main_cfg
 
+    def update_config_file(self, filename):
+        """
+        Update config with objects from given file, can also update self.cfg
+        from main nagios.cfg
+        """
+        if filename != self.nagios_cfg:
+            self.config.update(self.load_config_file(filename))
+        else:
+            cfg = NagConfigFile(self.nagios_cfg, self.factory).parse(add_file_info=True)
+            self.config.remove(self.cfg)
+            self.cfg = cfg
+            self.config.add(cfg)
+
     def update_status(self):
         """
         Update current status, status collection is fully updated, changes (if
@@ -99,28 +120,28 @@ class NagData(object):
 
     def config_outdated(self):
         """
-        Check if configuration files were updated since last load
+        Check if configuration files were updated since last load, returns list
+        of updated files
         """
-        outdated = False
+        outdated = []
         for fn, fs in self.config.tags['__filename'].items():
             try:
                 ctime = os.stat(fn).st_ctime
                 if fs:
-                    outdated = ctime > list(fs)[0]['__ctime']
+                    if ctime > list(fs)[0]['__ctime']:
+                        outdated.append(fn)
                 else:
-                    outdated = True
+                    outdated.append(fn)
             except:
-                outdated = bool(fs)
-            if outdated:
-                return outdated
+                if fs:
+                    outdated.append(fn)
         cfg = NagConfigFile(self.nagios_cfg,
                 self.factory).parse()
         for f in cfg['cfg_file'] + reduce(lambda s, x: s + x,
                  [ glob.glob("%s/*.cfg" % d) for d in cfg['cfg_dir'] ], []):
                 # appeared new file
-                outdated = not f in self.config.tags['__filename']
-                if outdated:
-                    return outdated
+                if not f in self.config.tags['__filename']:
+                    outdated.append(f)
         return outdated
 
     def status_outdated(self):
