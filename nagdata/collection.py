@@ -103,7 +103,8 @@ class NagCollection(object):
         Remove object from collection
         """
         for g in nagobj.tags:
-            self.tags[g][nagobj[g]].discard(nagobj)
+            if g in nagobj:
+                self.tags[g][nagobj[g]].discard(nagobj)
         self._set.discard(nagobj)
         nagobj.collection = None
 
