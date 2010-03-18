@@ -102,7 +102,8 @@ class NagData(object):
         from main nagios.cfg
         """
         if filename != self.nagios_cfg:
-            self.config.update(self.load_config_file(filename))
+            objs = self.load_config_file(filename)
+            self.config.update(objs)
         else:
             cfg = NagConfigFile(self.nagios_cfg, self.factory).parse(add_file_info=True)
             self.config.remove(self.cfg)
@@ -120,28 +121,28 @@ class NagData(object):
 
     def config_outdated(self):
         """
-        Check if configuration files were updated since last load, returns list
+        Check if configuration files were updated since last load, returns set
         of updated files
         """
-        outdated = []
+        outdated = set()
         for fn, fs in self.config.tags['__filename'].items():
             try:
                 ctime = os.stat(fn).st_ctime
                 if fs:
                     if ctime > list(fs)[0]['__ctime']:
-                        outdated.append(fn)
+                        outdated.add(fn)
                 else:
-                    outdated.append(fn)
+                    outdated.add(fn)
             except:
                 if fs:
-                    outdated.append(fn)
+                    outdated.add(fn)
         cfg = NagConfigFile(self.nagios_cfg,
                 self.factory).parse()
         for f in cfg['cfg_file'] + reduce(lambda s, x: s + x,
                  [ glob.glob("%s/*.cfg" % d) for d in cfg['cfg_dir'] ], []):
                 # appeared new file
                 if not f in self.config.tags['__filename']:
-                    outdated.append(f)
+                    outdated.add(f)
         return outdated
 
     def status_outdated(self):
@@ -255,6 +256,10 @@ class NagData(object):
         f = open(filename, 'w');
         f.write(s)
         f.close()
+        # update ctime of objects so that they will not appear in outdated
+        ctime = os.stat(filename).st_ctime
+        for o in objs:
+            o['__ctime'] = ctime
 
 
 
@@ -414,11 +419,28 @@ class OnUpdateCallbacks(object):
         config collection, call on_update_config(old, new) before any update
         """
         main_cfg, cfg_objs = self.load_config()
-        self.on_update_config(self.config, cfg_objs)
+        self.before_update_config(self.config, cfg_objs)
         # add changed and created config objects to new collection
         cfg_objs.update(self.config)
         self.config = cfg_objs
         self.cfg = main_cfg
+        self.after_update_config()
+
+    def update_config_file(self, filename):
+        """
+        Update config with objects from given file, can also update self.cfg
+        from main nagios.cfg
+        """
+        if filename != self.nagios_cfg:
+            cfg_objs = self.load_config_file(filename)
+            self.before_update_config(self.config, cfg_objs)
+            self.config.update(cfg_objs)
+            self.after_update_config()
+        else:
+            cfg = NagConfigFile(self.nagios_cfg, self.factory).parse(add_file_info=True)
+            self.config.remove(self.cfg)
+            self.cfg = cfg
+            self.config.add(cfg)
 
     def update_status(self):
         """
@@ -427,19 +449,32 @@ class OnUpdateCallbacks(object):
         before any update
         """
         stat, ctime = self.load_status()
-        self.on_update_status(self.config, stat)
+        self.before_update_status(self.config, stat)
         self.status_ctime = ctime
         self.status = stat
+        self.after_update_status()
 
-    def on_update_config(self, old_config, new_config):
+    def before_update_config(self, old_config, new_config):
         """
         Called after loading new configuration and before updating old
         """
         pass
 
-    def on_update_status(self, old_status, new_status):
+    def after_update_config(self):
+        """
+        Called after updating configuration objects
+        """
+        pass
+
+    def before_update_status(self, old_status, new_status):
         """
         Called after loading new status collection and before updating old
+        """
+        pass
+
+    def after_update_status(self):
+        """
+        Called after updating status objects
         """
         pass
 
