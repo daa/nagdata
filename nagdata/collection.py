@@ -22,7 +22,7 @@ Collection of Nagios objects
 
 import copy
 from factory import NagiosFactory
-from exceptions import NotUnique
+from exceptions import NotUnique, UnsuitableObjGroup
 
 class NagCollection(object):
     """
@@ -30,14 +30,18 @@ class NagCollection(object):
     Provides methods to filter objects based on fields and their values.
     """
 
-    def __init__(self, notags=False):
+    def __init__(self, notags=False, obj_group=None):
         """
         if notags is set then no indexing will be performed and no search will
         be possible (it is useful when creating intermediary collections which
         are used only to keep set of objects)
+        obj_group defines objects of what group may be holded in this
+        collection, None means every group, and if object's obj_group is None
+        it means any collection
         """
         self._set = set()
         self.notags = notags
+        self._obj_group = obj_group
         # tag -> value -> set of objects
         self.tags = {}
 
@@ -45,6 +49,10 @@ class NagCollection(object):
         """
         Add object to collection. Also adds this object to necessary groups
         """
+        if self._obj_group and nagobj.obj_group and \
+                self._obj_group != nagobj.obj_group:
+                    raise UnsuitableObjGroup(self._obj_group, nagobj.obj_group)
+
         if self.notags:
             self._set.add(nagobj)
             return

@@ -57,7 +57,7 @@ class NagData(object):
         Load configuration file and objects, returns representation of main
         configuration file (nagios.cfg) and config collection
         """
-        nco = NagCollection()
+        nco = NagCollection(obj_group='config')
         cfg = NagConfigFile(self.nagios_cfg, self.factory).parse(add_file_info=True)
         nco.add(cfg)
         for f in cfg['cfg_file']:
@@ -133,32 +133,14 @@ class NagData(object):
         except:
             return False
 
-    def new_untied(self, obj_type, **kw):
-        """
-        Create nagios object of obj_type, set its fields from kw, do not add to
-        corresponding collection.
-        """
-        o = self.factory(obj_type)
-        for k, v in kw.items():
-            o[k] = v
-        return o
-
-    def add(self, nagobj):
-        """
-        Add object to corresponding collection
-        """
-        if nagobj.obj_type in self.config.tags['obj_type']:
-            self.config.add(nagobj)
-        elif nagobj.obj_type in self.status.tags['obj_type']:
-            self.status.add(nagobj)
-
     def new(self, obj_type, **kw):
         """
         Create nagios object of obj_type, set its fields from kw, add it to
-        corresponding collection, return it
+        config collection, return it. Can create only objects of 'config'
+        group, otherwise exception raised when adding to config collection
         """
-        o = self.new_untied(obj_type, **kw)
-        self.add(o)
+        o = self.factory(obj_type, **kw)
+        self.config.add(o)
         return o
 
     def remove(self, nagobj):
@@ -227,14 +209,12 @@ class NagData(object):
         filename = os.path.abspath(filename)
         nagobj['__filename'] = filename
 
-        if not reduce(lambda s, d: s or filename.startswith(d), 
-                self.cfg['cfg_dir'], False) \
+        if not [ d for d in self.cfg['cfg_dir'] if filename.startswith(d) ] \
                 and not filename in self.cfg['cfg_file']:
-                raise NotInConfig(("Fle '%s' is not in one of config " + \
-                    "directories and not one of config files") % filename)
+                    raise NotInConfig(filename)
 
-        if not (nagobj in self.config or nagobj in self.status):
-            self.add(nagobj)
+        if not nagobj in self.config:
+            self.config.add(nagobj)
 
         objs = list(self.filter(__filename=filename))
         objs.sort(cmp=lambda a, b: cmp(a.get('__pos', 10000),

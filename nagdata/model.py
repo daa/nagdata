@@ -32,6 +32,8 @@ class BaseNagObj(dict):
     # define with which object type will factory associate this class (None
     # to not associate)
     obj_type = None
+    # define to which group object belongs (config, status)
+    obj_group = None
     # primary key
     pkey = None
     # what fields to index and to perform search
@@ -329,6 +331,7 @@ class NagObj(BaseNagObj):
     """
     Nagios object
     """
+    obj_group = 'config'
     def __str__(self):
         if self.fmt is None:
             return "define %s {\n\t%s\n\t}\n\n" % (self.obj_type, "\n\t".join([
@@ -420,6 +423,7 @@ class NagStat(BaseNagObj):
     """
     Nagios status
     """
+    obj_group = 'status'
     def __str__(self):
         return "%s {\n\t%s\n\t}\n" % (self.obj_type, "\n\t".join([
             "%s = %s" % (a, v) for a, v in self.fields() ]))
@@ -460,6 +464,7 @@ class NagConfig(NagStat):
     Represents main Nagios configuration file. It contains field-value pairs,
     so obj_type is DEFAULT_ROOT (which is 'ROOT')
     """
+    obj_group = 'config'
     obj_type = 'ROOT'
     cfg_file = fields.group_list(fields.value_list)
     cfg_dir = fields.group_list(fields.value_list)

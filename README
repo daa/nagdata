@@ -80,15 +80,15 @@ from nagdata import nagdata
 
 n = nagdata.NagDataSimpleApi()
 
-#create and add
+#create and add config object
 svc = n.new('service',
     service_description='PING',
     host_name='localhost')
 
 # just create
-svc = n.new_untied('service', service_description='PING')
+svc = n.factory('service', service_description='PING')
 svc['host_name'] = 'router1'
-# add to collection
-n.add(svc)
+# add to config
+n.config.add(svc)
 
 

@@ -31,6 +31,7 @@ class __fmt__(dict):
     # define with which object type will factory associate this class (None
     # to not associate)
     obj_type = '__fmt__'
+    obj_group = None
     # what fields to index and perform search
     _base_tags = set(['__filename', '__id'])
     tags = set()
