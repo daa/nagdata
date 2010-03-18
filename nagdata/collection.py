@@ -51,7 +51,7 @@ class NagCollection(object):
 
         if not self.check_pk(nagobj):
             raise NotUnique("Object '%s' with %s already exists in collection"%\
-                    (nagobj.obj_type, nagobj.pkey_value()))
+                    (nagobj.obj_type, nagobj.pkey_repr()))
 
         self._set.add(nagobj)
         nagobj.collection = self

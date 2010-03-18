@@ -45,22 +45,28 @@ class BaseNagObj(dict):
     # object's format
     fmt = None
 
-    def __init__(self):
+    def __init__(self, **kw):
+        """
+        **kw contains object's attributes
+        """
         self.__id = object.__hash__(self)
         sup = super(BaseNagObj, self)
         sup.__setitem__('obj_type', self.obj_type)
         sup.__setitem__('__id', self.__id)
-        #self['obj_type'] = self.obj_type
-        #self['__id'] = self.__id
-        idxs = self.tags
+        tags = self.tags
         pk = self.pkey
-        idxs.update(self._base_tags)
+        tags.update(self._base_tags)
         if isinstance(pk, tuple):
-            idxs.update(pk)
+            tags.update(pk)
         else:
-            idxs.add(pk)
+            tags.add(pk)
+        for k, v in kw.items():
+            self[k] = v
 
-    def pkey_value(self):
+    def pkey_repr(self):
+        """
+        Represent primary key
+        """
         pk = self.pkey
         if pk is None:
             val = "__id='%s'" % self.__id
@@ -108,17 +114,10 @@ class BaseNagObj(dict):
         change
         """
         pk = self.pkey
-        if isinstance(pk, str) and pk in self:
-            self.__id = hash((self.obj_type, pk, self[pk]))
-        elif isinstance(pk, tuple):
-            pks = [self.obj_type]
-            for k in pk:
-                pks.append(k)
-                if k in self:
-                    pks.append(self[k])
-                else:
-                    pks.append(None)
-            self.__id = hash(tuple(pks))
+        if pk:
+            self.__id = hash((self.obj_type, pk,
+                isinstance(pk, str) and (pk in self and self[pk] or None)
+                or tuple([ k in self and self[k] or None for k in pk ])))
         super(BaseNagObj, self).__setitem__('__id', self.__id)
 
     def is_pk(self, attr):
@@ -387,7 +386,7 @@ class NagServiceDependency(NagObj):
 
 class NagServiceEscalation(NagObj):
     obj_type = 'serviceescalation'
-    pkey = ('host_name', 'service_description')
+    tags = set(['host_name', 'service_description'])
 
 class NagHostDependency(NagObj):
     obj_type = 'hostdependency'
