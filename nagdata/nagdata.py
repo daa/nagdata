@@ -81,8 +81,14 @@ class NagData(object):
         time (ctime of file)
         """
         nso = NagCollection()
-        nso.extend(NagStatusFile(self.cfg['status_file'], self.factory).parse())
-        status_ctime = os.stat(self.cfg['status_file']).st_ctime
+        try:
+            nso.extend(NagStatusFile(self.cfg['status_file'], self.factory).parse())
+        except:
+            pass
+        try:
+            status_ctime = os.stat(self.cfg['status_file']).st_ctime
+        except:
+            status_ctime = 0
         return nso, status_ctime
 
     def update_config(self):
