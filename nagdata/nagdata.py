@@ -23,18 +23,21 @@ Python interface to Nagios objects and status
 import glob
 import os
 import time
+import re
 
-from nagfile import NagObjectFile, NagStatusFile, NagConfigFile
+from nagfile import NagObjectFile, NagStatusFile, NagConfigFile, NagLogFile
 from collection import NagCollection
 from factory import NagiosFactory
 from exceptions import NotFound, TooMany, NotInConfig, ConfigNotGiven
 import model
 import fmt
+import log
 
 class NagData(object):
     """
     Provides interface to Nagios objects and status.
     """
+    starting_re = re.compile('^Nagios .+ starting\.\.\.')
 
     def __init__(self, config_file='/etc/nagios/nagios.cfg',
             factory=NagiosFactory,
@@ -47,9 +50,13 @@ class NagData(object):
         self.factory = factory
         model.register_all_classes(self.factory)
         fmt.register_fmt_classes(self.factory)
+        log.register_log_classes(self.factory)
         self.nagios_cfg = config_file
         self.cfg, self.config = self.load_config()
         self.status, self.status_ctime = self.load_status()
+        self.log, self.log_pos = self.load_log()
+        # time of last check for nagios reload
+        self.last_reload = time.strftime("%s")
         self.keep_backup = keep_backup
 
     def load_config_file(self, filename):
@@ -91,6 +98,16 @@ class NagData(object):
             status_ctime = 0
         return nso, status_ctime
 
+    def load_log(self, filename=None, pos=None):
+        """
+        Load nagios.log file, or its archive copy, returns log file and position
+        """
+        if not filename:
+            filename = self.cfg['log_file']
+        log = NagLogFile(filename, self.factory).parse(add_file_info=True)
+        pos = log['__byte_pos']
+        return log, pos
+
     def update_config(self):
         """
         Update current configuration, changed and created objects remain in
@@ -124,6 +141,12 @@ class NagData(object):
         stat, ctime = self.load_status()
         self.status_ctime = ctime
         self.status = stat
+
+    def update_log(self):
+        nlog, npos = self.load_log(filename=self.cfg['log_file'],
+                pos=self.log_pos)
+        self.log['records'].extend(nlog['records'])
+        self.log_pos = npos
 
     def config_outdated(self):
         """
@@ -160,6 +183,29 @@ class NagData(object):
             return ctime > self.status_ctime
         except:
             return False
+
+    def nagios_reloaded(self, since=None):
+        """
+        Check if Nagios process was reloaded since last check
+        """
+        if not since:
+            since = self.last_reload
+        self.update_log()
+        n = 0
+        for ts, msg in self.log['records']:
+            if ts >= since:
+                break
+            n += 1
+        new_recs = self.log['records'][n:]
+        reload_ts = None
+        for ts, msg in new_recs:
+            #print msg
+            if msg == 'Caught SIGHUP, restarting...' \
+                    or self.starting_re.match(msg):
+                reload_ts = ts
+        if reload_ts:
+            self.last_reload = reload_ts
+        return reload_ts
 
     def new(self, obj_type, **kw):
         """

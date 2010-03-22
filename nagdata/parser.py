@@ -26,6 +26,8 @@ from exceptions import NagiosSyntaxError
 import cparser_fmt
 import cparser_fast
 
+import re
+
 class NagiosParser(object):
     """
     Base class to parse Nagios object representation.
@@ -99,4 +101,19 @@ class ConfigParser(StatusParser):
     def parse(self, buf, add_pos=False, add_attrs=None):
         c = super(ConfigParser, self).parse(buf, add_pos, add_attrs)
         return list(c)[0]
+
+class LogParser(ConfigParser):
+    """
+    Parse log file
+    """
+    rec_re = re.compile('^\[([^\]]+)\] (.+)$')
+
+    def parse_string(self, buf):
+        args = []
+        for l in buf.splitlines():
+            m = self.rec_re.match(l)
+            if m:
+                # timestamp, message
+                args.append((m.groups()[0], m.groups()[1]))
+        return [('real', 'log', args, None)] 
 

@@ -25,15 +25,14 @@ from factory import NagiosFactory
 
 class __fmt__(dict):
     """
-    Base class for objects and statuses. Its ancestors should provide __str__
-    method to represent it in correct Nagios syntax.
+    Represent nagios object's format
     """
     # define with which object type will factory associate this class (None
     # to not associate)
     obj_type = '__fmt__'
     obj_group = None
     # what fields to index and perform search
-    _base_tags = set(['__filename', '__id'])
+    _base_tags = set(['obj_type', '__filename', '__id'])
     tags = set()
 
     @classmethod

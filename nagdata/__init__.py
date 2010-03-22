@@ -38,6 +38,7 @@ model          -- Nagios objects (hoststatus, servicestatus, service definition,
 fields         -- Types of Nagios object attributes
 fmt            -- "Imaginary" format object helping to keep nagios file format
                   and structure
+log            -- Object represenging nagios log file
 
 """
 

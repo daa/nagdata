@@ -21,10 +21,12 @@ Nagios file with objects.
 
 """
 
-from parser import ObjectParser, StatusParser, ConfigParser
+from parser import ObjectParser, StatusParser, ConfigParser, LogParser
 from factory import NagiosFactory
 from exceptions import NagiosSyntaxError
 import model
+
+import os
 
 class NagFile(object):
     """
@@ -69,12 +71,46 @@ class NagStatusFile(NagFile):
     def __init__(self, filename, factory=NagiosFactory):
         super(NagStatusFile, self).__init__(filename, StatusParser(factory))
 
-class NagConfigFile(NagStatusFile):
+class NagConfigFile(NagFile):
     """
     Parse nagios.cfg file
     """
 
     def __init__(self, filename, factory=NagiosFactory):
-        super(NagConfigFile, self).__init__(filename, factory)
-        self.parser = ConfigParser(factory)
+        super(NagConfigFile, self).__init__(filename, ConfigParser(factory))
+
+class NagLogFile(NagFile):
+    """
+    Parse nagios.log file
+    """
+
+    def __init__(self, filename, factory=NagiosFactory):
+        super(NagLogFile, self).__init__(filename, LogParser(factory))
+
+    def parse(self, add_file_info=False, pos=None):
+        """
+        Parse lines and return list of kw (it also has obj_type which should be
+        removed when creating object), may read starting from pos
+        """
+        fd = os.open(self.filename, os.O_RDONLY)
+        if pos:
+            os.lseek(fd, pos, 0)
+        s = os.read(fd, 4096)
+        buf = ''
+        while s:
+            buf += s
+            s = os.read(fd, 4096)
+        pos = len(buf)
+        try:
+            if add_file_info:
+                c = self.parser.parse(buf, add_pos=True,
+                        add_attrs={'__filename': self.filename,
+                            '__byte_pos': pos})
+            else:
+                c = self.parser.parse(buf)
+        except NagiosSyntaxError, e:
+            os.close(fd)
+            raise NagiosSyntaxError("File \"%s\": %s" % (self.filename, str(e)))
+        os.close(fd)
+        return c
 
